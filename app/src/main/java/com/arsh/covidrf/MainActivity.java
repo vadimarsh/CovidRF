@@ -6,27 +6,24 @@ import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.loader.app.LoaderManager;
-import androidx.loader.content.Loader;
 
+import com.android.volley.DefaultRetryPolicy;
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
 import com.google.gson.Gson;
 
-import java.io.IOException;
-
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import org.json.JSONObject;
 
 import static com.arsh.covidrf.Consts.URL_GET_STATUS_RF;
 
 public class MainActivity extends AppCompatActivity {
-    TextView tvCured;
-    TextView tvDeath;
-    TextView tvTotal;
-    ProgressBar progressBar;
+    private TextView tvCured;
+    private TextView tvDeath;
+    private TextView tvTotal;
+    private ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,33 +34,29 @@ public class MainActivity extends AppCompatActivity {
         tvTotal = findViewById(R.id.tvCases);
         progressBar = findViewById(R.id.progressBar);
         progressBar.animate();
-
-        Loader<String> stringLoader = LoaderManager.getInstance(this).initLoader(1, null, new MyLoaderCallBack());
-        stringLoader.forceLoad();
-
-    }
-class MyLoaderCallBack implements LoaderManager.LoaderCallbacks<String>{
-
-    @NonNull
-    @Override
-    public Loader<String> onCreateLoader(int id, @Nullable Bundle args) {
-        return new MyAsyncTaskLoader(MainActivity.this);
+        getDataFromApi();
     }
 
-    @Override
-    public void onLoadFinished(@NonNull Loader<String> loader, String data) {
-        Gson gson = new Gson();
-        CountryStatus obj = gson.fromJson(data,CountryStatus.class);
-        tvCured.setText(""+obj.getRecovered());
-        tvDeath.setText(""+obj.getDeaths());
-        tvTotal.setText(""+obj.getCases());
-        progressBar.setVisibility(View.INVISIBLE);
-
+    private void getDataFromApi() {
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, URL_GET_STATUS_RF, null, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                JSONObject data = response;
+                Gson gson = new Gson();
+                CountryStatus obj = gson.fromJson(String.valueOf(data), CountryStatus.class);
+                tvCured.setText("" + obj.getRecovered());
+                tvDeath.setText("" + obj.getDeaths());
+                tvTotal.setText("" + obj.getCases());
+                progressBar.setVisibility(View.INVISIBLE);
+                Log.d("request", " succes!");
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Log.d("request", " error" + error);
+            }
+        });
+        request.setRetryPolicy(new DefaultRetryPolicy(5000, 5, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        App.getApp().addToRequestQueue(request);
     }
-
-    @Override
-    public void onLoaderReset(@NonNull Loader<String> loader) {
-
-    }
-}
 }
